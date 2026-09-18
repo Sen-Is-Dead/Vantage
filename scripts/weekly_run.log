@@ -1,0 +1,136 @@
+2026-09-18 18:01:16,126 INFO pipeline.ingest.load: bootstrap ok: season=2026/27 current_gw=4 next_gw=5 | teams=0 players=0 fixtures=0 player_gw_stats=0 user_squad=0 entry_state=0 understat=0 free_transfers_now=None
+2026-09-18 18:01:24,827 INFO pipeline.ingest.load: element-summary 100/659
+2026-09-18 18:01:33,258 INFO pipeline.ingest.load: element-summary 200/659
+2026-09-18 18:01:41,552 INFO pipeline.ingest.load: element-summary 300/659
+2026-09-18 18:01:49,829 INFO pipeline.ingest.load: element-summary 400/659
+2026-09-18 18:01:58,151 INFO pipeline.ingest.load: element-summary 500/659
+2026-09-18 18:02:06,407 INFO pipeline.ingest.load: element-summary 600/659
+2026-09-18 18:02:11,353 INFO pipeline.ingest.load: element-summary 659/659
+2026-09-18 18:02:27,160 INFO pipeline.models.predict: predict: season=2026/27 as_of_gw=4 targets=[5, 6, 7, 8, 9]
+== 1/6 ingest ==
+INGEST OK: season=2026/27 current_gw=4 next_gw=5 | teams=20 players=659 fixtures=380 player_gw_stats=2549 user_squad=60 entry_state=4 understat=0 free_transfers_now=2
+== 2/6 history ==
+history already loaded (113582 archive rows); skipping
+== 3/6 accuracy of past predictions ==
+no finished gameweeks with predictions yet
+== 4/6 train (held-out evaluation, logged to model_runs) ==
+training frame: 108870 rows, 96 features, seasons=['2022/23', '2023/24', '2024/25', '2025/26', '2026/27'], valid=2025/26
+
+== GKP (validated on 2025/26) ==
+  MAE 0.626  (baselines: last-5 mean 0.616, season ppg 0.640, zero 0.755)
+  MAE regular starters 2.054 vs last-5 baseline 2.340
+  actual points of the model's top-10 each GW: 3.40 vs 3.31 for the last-5 baseline
+  spearman 0.668  best_iteration 88  form-feature gain share 81%
+  top features: minutes_ewm=0.418, points_l3=0.185, played_ewm=0.082, n_fixtures=0.021, bps_l3=0.015, minutes_l3=0.013, ict_index_l3=0.011, strength_diff=0.010, xgc_l10=0.009, ict_index_l10=0.009, goals_conceded_ewm=0.009, saves_ewm=0.009
+
+== DEF (validated on 2025/26) ==
+  MAE 1.096  (baselines: last-5 mean 1.234, season ppg 1.242, zero 1.269)
+  MAE regular starters 2.261 vs last-5 baseline 2.715
+  actual points of the model's top-10 each GW: 4.38 vs 3.61 for the last-5 baseline
+  spearman 0.670  best_iteration 143  form-feature gain share 67%
+  top features: minutes_ewm=0.244, bps_ewm=0.120, played_ewm=0.095, n_fixtures=0.037, strength_diff=0.037, ict_index_ewm=0.030, fdr=0.026, minutes_l3=0.022, bps_l3=0.021, days_since_last_match=0.018, opp_defence=0.014, xgc_l10=0.012
+
+== MID (validated on 2025/26) ==
+  MAE 0.957  (baselines: last-5 mean 1.028, season ppg 1.042, zero 1.191)
+  MAE regular starters 2.130 vs last-5 baseline 2.492
+  actual points of the model's top-10 each GW: 4.49 vs 3.86 for the last-5 baseline
+  spearman 0.741  best_iteration 126  form-feature gain share 80%
+  top features: ict_index_ewm=0.345, minutes_ewm=0.165, played_ewm=0.053, minutes_l3=0.051, n_fixtures=0.037, points_ewm=0.036, ict_index_l10=0.026, price=0.025, points_season_ppg=0.016, ict_index_l3=0.013, strength_diff=0.011, fdr=0.009
+
+== FWD (validated on 2025/26) ==
+  MAE 1.102  (baselines: last-5 mean 1.116, season ppg 1.124, zero 1.296)
+  MAE regular starters 2.513 vs last-5 baseline 2.783
+  actual points of the model's top-10 each GW: 4.15 vs 3.70 for the last-5 baseline
+  spearman 0.785  best_iteration 85  form-feature gain share 78%
+  top features: minutes_ewm=0.309, minutes_l3=0.088, ict_index_ewm=0.080, points_ewm=0.049, played_ewm=0.048, ict_index_l3=0.031, n_fixtures=0.031, price=0.027, clean_sheet_ewm=0.016, bps_ewm=0.016, opp_attack=0.013, strength_diff=0.013
+== 5/6 predict ==
+PREDICT OK: season=2026/27 as_of_gw=4 targets=[5, 6, 7, 8, 9] rows=3295 model=lgbm-v1
+
+== top 5 GKP for GW5 ==
+  web_name team  price  pred  pred_low  pred_high  fdr  is_home  n_fixtures status  chance_of_playing_next_round
+  Trafford  LEE    5.0  4.59      1.23       5.96  3.0      1.0           1      a                           NaN
+      Sels  NFO    5.0  4.04      2.01       5.76  2.0      1.0           1      a                           NaN
+  Tzolakis  HUL    4.6  3.77      1.28       5.52  3.0      0.0           1      a                           NaN
+Verbruggen  BHA    4.5  3.68      1.35       5.29  4.0      1.0           1      a                           NaN
+  Petrović  BOU    4.5  3.64      1.26       5.23  4.0      1.0           1      a                           NaN
+
+== top 5 DEF for GW5 ==
+ web_name team  price  pred  pred_low  pred_high  fdr  is_home  n_fixtures status  chance_of_playing_next_round
+ Khalaili  CRY    5.0  6.18      0.74       6.18  3.0      0.0           1      a                           NaN
+Tarkowski  EVE    6.1  5.86      1.08       7.74  2.0      1.0           1      a                           NaN
+  Gabriel  ARS    8.0  5.35      1.14       7.34  3.0      0.0           1      a                           NaN
+   Virgil  LIV    6.5  4.84      1.06       7.38  3.0      0.0           1      a                           NaN
+De Cuyper  BHA    4.9  4.80      0.61       5.38  4.0      1.0           1      a                           NaN
+
+== top 5 MID for GW5 ==
+   web_name team  price  pred  pred_low  pred_high  fdr  is_home  n_fixtures status  chance_of_playing_next_round
+       Saka  ARS    9.5  7.84      1.83      11.23  3.0      0.0           1      a                           NaN
+B.Fernandes  MUN   12.0  7.21      2.00      10.95  3.0      0.0           1      a                           NaN
+Gibbs-White  NFO    8.0  6.71      2.04       8.83  2.0      1.0           1      a                         100.0
+    Semenyo  MCI    8.4  6.64      1.96       8.88  2.0      1.0           1      a                           NaN
+     Rogers  CHE    7.7  5.60      1.80       8.37  3.0      0.0           1      a                           NaN
+
+== top 5 FWD for GW5 ==
+     web_name team  price  pred  pred_low  pred_high  fdr  is_home  n_fixtures status  chance_of_playing_next_round
+      Haaland  MCI   15.6  7.45      1.94      11.30  2.0      1.0           1      a                           NaN
+Calvert-Lewin  LEE    6.0  5.00      1.43       7.99  3.0      1.0           1      a                           NaN
+        Wissa  NEW    6.2  4.77      1.80       6.87  2.0      1.0           1      a                           NaN
+         Isak  LIV    9.1  4.41      1.49       6.31  3.0      0.0           1      a                           NaN
+      Havertz  ARS    7.6  4.41      1.52       4.81  3.0      0.0           1      a                           NaN
+
+== GKP: top 5 over GW5-9 (sum of predicted points) ==
+  web_name position team  pts_5gw  weighted  price
+  Petrović      GKP  BOU    20.54     11.58    4.5
+      Sels      GKP  NFO    20.47     11.81    5.0
+  Trafford      GKP  LEE    20.41     12.10    5.0
+Verbruggen      GKP  BHA    20.36     11.70    4.5
+  Tzolakis      GKP  HUL    19.66     11.28    4.6
+
+== DEF: top 5 over GW5-9 (sum of predicted points) ==
+ web_name position team  pts_5gw  weighted  price
+ Khalaili      DEF  CRY    30.09     17.50    5.0
+  Mukiele      DEF  SUN    28.04     15.41    5.4
+Tarkowski      DEF  EVE    27.78     16.53    6.1
+  Gabriel      DEF  ARS    26.76     15.70    8.0
+De Cuyper      DEF  BHA    26.14     15.43    4.9
+
+== MID: top 5 over GW5-9 (sum of predicted points) ==
+   web_name position team  pts_5gw  weighted  price
+       Saka      MID  ARS    32.97     19.86    9.5
+B.Fernandes      MID  MUN    31.93     19.11   12.0
+    Semenyo      MID  MCI    30.58     17.94    8.4
+Gibbs-White      MID  NFO    25.83     15.76    8.0
+       Rice      MID  ARS    24.34     14.23    7.4
+
+== FWD: top 5 over GW5-9 (sum of predicted points) ==
+     web_name position team  pts_5gw  weighted  price
+      Haaland      FWD  MCI    37.24     21.43   15.6
+      Havertz      FWD  ARS    25.26     14.54    7.6
+     McBurnie      FWD  HUL    23.47     13.29    5.5
+         Isak      FWD  LIV    23.42     13.39    9.1
+Calvert-Lewin      FWD  LEE    22.86     13.35    6.0
+== 6/6 recommend ==
+=== Recommendation for GW5 (predictions as of GW4; horizon GW5-9) ===
+Transfers (2, 0 hits = -0 pts):
+  OUT Shaw             (4.4)  ->  IN Khalaili         (5.0)   horizon gain +15.0
+  OUT Tzolis           (6.4)  ->  IN Xhaka            (5.5)   horizon gain +5.8
+Expected XI points GW5: 63.1  (gain vs no transfers over horizon: +17.3)
+Captain: Haaland (7.5, q20 1.9 / q80 11.3)   Vice: B.Fernandes (7.2)   risk appetite -0.19
+Bank after: 0.3m   Free transfers left: 0
+Starting XI:
+  GKP: Raya 3.2
+  DEF: Khalaili 6.2, Egan 4.5, Calafiori 4.5
+  MID: B.Fernandes 7.2 (V), Mbeumo 5.2, Szoboszlai 4.7, Xhaka 4.6, Slater 3.8
+  FWD: Haaland 7.5 (C), Wissa 4.8
+Bench: 1. Dubravka 0.2, 2. Justin 3.7, 3. João Pedro 3.4, 4. O'Shea 2.4
+Chips (planning only; you activate them yourself):
+  Bench Boost    hold (best GW8 +10.6, threshold 12.0)   [GW5: +9.7, GW6: +10.4, GW7: +8.8, GW8: +10.6, GW9: +10.3]
+  Triple Captain hold (best GW9 +8.1, threshold 7.0)   [GW5: +7.5, GW6: +6.9, GW7: +8.0, GW8: +6.8, GW9: +8.1]
+  Free Hit       hold (best GW6 +10.7, threshold 12.0)   [GW5: +10.4, GW6: +10.7, GW7: +9.4, GW8: +7.6, GW9: +9.5]
+  Wildcard       USE NOW (+26.7 >= 15.0)   [GW5: +26.7, GW6: +25.7, GW7: +17.8, GW8: +13.1, GW9: +7.6]
+  >>> Chip recommended THIS gameweek: Wildcard
+note: Mbeumo is protected (status 'a') and locked into the squad.
+note: captaincy shaded towards the q20 floor (protecting rank): overall rank 2,513,299 of 10,867,161
+Nothing has been submitted to FPL. Apply these yourself if you agree.
+
+WEEKLY RUN COMPLETE. Nothing was submitted to FPL.

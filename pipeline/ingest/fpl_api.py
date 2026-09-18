@@ -138,6 +138,14 @@ def transform_teams(bootstrap: dict[str, Any], season: str) -> list[dict[str, An
     ]
 
 
+def transform_chip_windows(bootstrap: dict[str, Any], season: str) -> list[dict[str, Any]]:
+    return [
+        {"season": season, "name": c["name"], "start_event": c["start_event"], "stop_event": c["stop_event"],
+         "number": c.get("number")}
+        for c in bootstrap.get("chips", [])
+    ]
+
+
 def transform_players(bootstrap: dict[str, Any], season: str) -> list[dict[str, Any]]:
     rows = []
     for e in bootstrap["elements"]:
@@ -243,7 +251,8 @@ def derive_free_transfers(history_current: list[dict[str, Any]], chips: list[dic
     return out
 
 
-def transform_entry_state(history: dict[str, Any], picks_by_gw: dict[int, dict[str, Any]], season: str) -> list[dict[str, Any]]:
+def transform_entry_state(history: dict[str, Any], picks_by_gw: dict[int, dict[str, Any]], season: str,
+                          total_players: int | None = None) -> list[dict[str, Any]]:
     chips = history.get("chips", []) or []
     ft_after = derive_free_transfers(history.get("current", []), chips)
     rows = []
@@ -259,7 +268,7 @@ def transform_entry_state(history: dict[str, Any], picks_by_gw: dict[int, dict[s
             "chips_used_json": [{"name": c["name"], "event": c["event"]} for c in chips if c.get("event") is not None and c["event"] <= gw],
             "points": h.get("points"), "total_points": h.get("total_points"),
             "overall_rank": h.get("overall_rank"), "gw_rank": h.get("rank"),
-            "points_on_bench": h.get("points_on_bench"),
+            "points_on_bench": h.get("points_on_bench"), "total_players": total_players,
         })
     return rows
 

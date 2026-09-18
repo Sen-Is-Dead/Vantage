@@ -16,6 +16,7 @@ from pipeline.ingest.fpl_api import (
     fetch_all_player_histories,
     gameweek_state,
     season_label,
+    transform_chip_windows,
     transform_entry_state,
     transform_fixtures,
     transform_picks,
@@ -86,6 +87,7 @@ def run_ingest(conn: psycopg.Connection, client: FPLClient | None = None, team_i
     conn.execute("DELETE FROM players WHERE season <> %s", (season,))
     res.n_players = upsert(conn, "players", transform_players(bootstrap, season), ["id"])
     res.n_fixtures = upsert(conn, "fixtures", transform_fixtures(client.fixtures(), season), ["season", "id"])
+    upsert(conn, "chip_windows", transform_chip_windows(bootstrap, season), ["season", "name", "start_event"])
     conn.commit()
 
     if include_histories:
@@ -108,7 +110,7 @@ def run_ingest(conn: psycopg.Connection, client: FPLClient | None = None, team_i
         squad_rows = [r for gw, p in picks_by_gw.items() for r in transform_picks(p, season, gw)]
         res.n_user_squad_rows = upsert(conn, "user_squad", squad_rows, ["season", "gw", "player_id"])
 
-        state_rows = transform_entry_state(history, picks_by_gw, season)
+        state_rows = transform_entry_state(history, picks_by_gw, season, bootstrap.get("total_players"))
         for r in state_rows:
             r["chips_used_json"] = Jsonb(r["chips_used_json"])
         res.n_entry_state_rows = upsert(conn, "user_entry_state", state_rows, ["season", "gw"])

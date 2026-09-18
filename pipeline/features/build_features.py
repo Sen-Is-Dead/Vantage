@@ -212,7 +212,8 @@ def build_training_frame(stats: pd.DataFrame, fixtures: pd.DataFrame, teams: pd.
     tfx = team_fixture_features(fixtures, teams)
     tform = team_form(fixtures)
 
-    targets = per_gw[["season", "player_id", "player_code", "position", "team_id", "gw", "points"]].rename(columns={"points": "target"})
+    targets = per_gw[["season", "player_id", "player_code", "position", "team_id", "gw", "points", "minutes"]].rename(
+        columns={"points": "target", "minutes": "target_minutes"})
     rows = _attach_state(targets, state, state_feature_cols())
     rows = rows[rows["gws_played_season"].fillna(0) >= min_prior_gws]
     rows = rows.merge(priors, on=["season", "player_code"], how="left")

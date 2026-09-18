@@ -1,0 +1,76 @@
+name: weekly
+
+# Runs every Tuesday 03:00 UTC (after Monday-night fixtures have been processed by FPL) and on demand.
+# It READS the FPL public API and WRITES to our own Postgres. It never submits anything to FPL.
+# Secret required: DATABASE_URL (Supabase *Session pooler* string, port 5432; the direct host is IPv6-only).
+on:
+  schedule:
+    - cron: "0 3 * * 2"
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: "Skip per-player histories (smoke test only)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: pipeline-db
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vantage_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Tests (throwaway Postgres, never Supabase)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/vantage_test
+        run: python -m pytest -q -p no:warnings
+
+  weekly:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Weekly pipeline (ingest -> accuracy -> train-eval -> predict -> recommend)
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FPL_TEAM_ID: "3964630"
+          PROTECTED_PLAYERS: "Mbeumo"
+          UNDERSTAT_ENABLED: "false"
+          PYTHONUTF8: "1"
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::DATABASE_URL secret is not set (use the Supabase Session pooler string)"; exit 1; fi
+          python -m pipeline.run_weekly all ${{ inputs.quick && '--quick' || '' }} 2>&1 | tee weekly.log
+          test "${PIPESTATUS[0]}" -eq 0
+      - name: Recommendation -> job summary
+        if: always()
+        run: |
+          { echo '### Weekly run'; echo '```'; grep -v '^20[0-9][0-9]-' weekly.log | sed -n '/== 6\/6 recommend ==/,$p'; echo '```';
+            echo '<details><summary>full log</summary>'; echo; echo '```'; grep -v '^20[0-9][0-9]-' weekly.log; echo '```'; echo '</details>'; } >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: weekly-log
+          path: weekly.log
+          retention-days: 30

@@ -165,9 +165,11 @@ CREATE TABLE IF NOT EXISTS user_entry_state (
     overall_rank           INTEGER,
     gw_rank                INTEGER,
     points_on_bench        INTEGER,
+    total_players          INTEGER,                      -- managers in the game (for rank percentile)
     updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (season, gw)
 );
+ALTER TABLE user_entry_state ADD COLUMN IF NOT EXISTS total_players INTEGER;
 
 -- ---------- derived ----------
 
@@ -241,4 +243,29 @@ CREATE TABLE IF NOT EXISTS ingest_log (
     n_gw_stats   INTEGER,
     n_understat  INTEGER,
     notes        TEXT
+);
+
+-- Backtest results (spec section 6): one row per replayed season x mode x strategy run.
+CREATE TABLE IF NOT EXISTS backtests (
+    id             SERIAL PRIMARY KEY,
+    run_date       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    season         TEXT NOT NULL,
+    mode           TEXT NOT NULL,          -- free_hit | realistic
+    strategy       TEXT NOT NULL,          -- model | naive_last5
+    model_version  TEXT,
+    start_gw       INTEGER,
+    end_gw         INTEGER,
+    total_points   NUMERIC(8,1),
+    per_gw_json    JSONB,
+    notes          TEXT
+);
+
+-- Chip availability windows from bootstrap-static (two of each chip in 2026/27: one per half-season).
+CREATE TABLE IF NOT EXISTS chip_windows (
+    season       TEXT NOT NULL,
+    name         TEXT NOT NULL,        -- wildcard | freehit | bboost | 3xc
+    start_event  INTEGER NOT NULL,
+    stop_event   INTEGER NOT NULL,
+    number       INTEGER,
+    PRIMARY KEY (season, name, start_event)
 );

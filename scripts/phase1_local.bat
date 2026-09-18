@@ -3,6 +3,7 @@ REM Phase 1 local runner. Double-click in the Vantage folder. Everything is logg
 REM Steps: place workflow file, create venv, install deps, run tests, run FPL ingest into Supabase, show counts.
 REM It does NOT commit or push anything. It never touches FPL write endpoints.
 setlocal
+set PYTHONUTF8=1
 cd /d "%~dp0.."
 set LOG=scripts\phase1_run.log
 echo === Phase 1 run %DATE% %TIME% === > "%LOG%"

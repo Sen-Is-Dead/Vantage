@@ -4,6 +4,7 @@ REM Steps: reset the DB (schema changed to multi-season; all data is regenerable
 REM season, load 4 past seasons from the vaastav archive, evaluate the MID model on 2025/26, then
 REM refit on everything and write GW predictions. Never touches FPL write endpoints.
 setlocal
+set PYTHONUTF8=1
 cd /d "%~dp0.."
 set LOG=scripts\phase2_run.log
 echo === Phase 2 run %DATE% %TIME% === > "%LOG%"

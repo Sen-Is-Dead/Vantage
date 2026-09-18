@@ -21,9 +21,13 @@ pipeline/            Python 3.11: ingest -> features -> models -> optimizer
   features/build_features.py  point-in-time features (rolling 3/5/10 + EWM form, fixtures, price, priors)
   models/train.py    one LightGBM regressor per position (+ q20/q80 quantile models), time-ordered eval
   models/predict.py  refit on everything, predict next 1..5 GWs, apply availability
+  optimize/solver.py PuLP/CBC squad + transfer optimiser (15/XI/captain/hits, budget, 3-per-club)
+  optimize/recommend.py weekly recommendation: horizon-weighted transfers, XI, bench, captain; protected-player lock
+  optimize/chips.py  chip timing: each chip alone, per candidate GW vs no-chip baseline, thresholds
+  backtest.py        replay a past season GW by GW with point-in-time refits; model vs naive manager
   run_weekly.py      CLI entrypoint used by GitHub Actions
 dashboard/           Next.js on Vercel (Phase 7)
-.github/workflows/   ingest.yml (manual), weekly.yml (Phase 6 cron)
+.github/workflows/   weekly.yml (Tuesday 03:00 UTC cron + manual), ingest.yml (manual ingest only)
 tests/               pytest; fixtures mirror real FPL API shapes
 ```
 
@@ -38,6 +42,9 @@ python -m pipeline.run_weekly ingest                 # full: + per-player gamewe
 python -m pipeline.run_weekly history                # 4 past seasons (~25 MB download), needed to train anything
 python -m pipeline.run_weekly train --positions MID  # evaluate on held-out 2025/26, log MAE to model_runs
 python -m pipeline.run_weekly predict --positions MID  # refit on all data, write predictions for the next 5 GWs
+python -m pipeline.run_weekly recommend               # transfers / XI / captain for YOUR squad -> recommendations table
+python -m pipeline.run_weekly backtest --season 2025/26  # replay a season: model vs naive last-5 manager
+python -m pipeline.run_weekly all                     # the weekly job (what GitHub Actions runs every Tuesday 03:00 UTC)
 python -m pipeline.run_weekly counts
 ```
 
@@ -68,3 +75,25 @@ The public FPL API does not expose the banked free-transfer count, so `derive_fr
 replays it from your transfer history (1 FT per GW, bank up to 5, wildcard/free hit retain the
 bank; confirmed for 2026/27 via `game_settings.max_extra_free_transfers = 4`). The ingest run
 prints a warning if the replay disagrees with the hits FPL actually charged you.
+
+## Backtest results (v1, no chips, GW2-38, buy = sell price)
+
+| season | model | naive last-5 manager | Manjit's real total (38 GWs, with chips) |
+|---|---|---|---|
+| 2024/25 | 2160 | 2090 | 2327 (top 11%) |
+| 2025/26 | 1976 | 1709 | 2256 (top 3%) |
+
+Free-hit-every-week upper bound for 2025/26 (unlimited transfers): 2054. The model beats a naive
+manager comfortably but does not yet beat a strong human season; the gap is prediction quality,
+not the optimiser. The backtest has no injury information (a live run does), no chips (Phase 5),
+and ignores GW1.
+
+## Weekly automation
+
+`.github/workflows/weekly.yml` runs the test suite against a throwaway Postgres, then
+`python -m pipeline.run_weekly all` against Supabase: ingest the latest gameweek, load the archive
+if the table is empty, score last week's predictions into `prediction_accuracy`, evaluate the models
+on a held-out season (`model_runs`), refit on everything and write `predictions` for the next five
+gameweeks, and write one `recommendations` row. The recommendation is copied into the run's job
+summary (Actions tab) and the full log is kept as an artifact for 30 days. Nothing is ever
+submitted to FPL; you read the recommendation and act on it yourself.

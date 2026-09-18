@@ -1,0 +1,68 @@
+{
+ "current": [
+  {
+   "event": 1,
+   "points": 60,
+   "total_points": 60,
+   "rank": 3000000,
+   "rank_sort": 3000001,
+   "overall_rank": 3000000,
+   "percentile_rank": 60,
+   "bank": 5,
+   "value": 1000,
+   "event_transfers": 0,
+   "event_transfers_cost": 0,
+   "points_on_bench": 6
+  },
+  {
+   "event": 2,
+   "points": 70,
+   "total_points": 130,
+   "rank": 2000000,
+   "rank_sort": 2000001,
+   "overall_rank": 2500000,
+   "percentile_rank": 50,
+   "bank": 5,
+   "value": 1002,
+   "event_transfers": 0,
+   "event_transfers_cost": 0,
+   "points_on_bench": 3
+  },
+  {
+   "event": 3,
+   "points": 75,
+   "total_points": 205,
+   "rank": 1800000,
+   "rank_sort": 1800001,
+   "overall_rank": 1756946,
+   "percentile_rank": 40,
+   "bank": 1,
+   "value": 1001,
+   "event_transfers": 3,
+   "event_transfers_cost": 4,
+   "points_on_bench": 2
+  },
+  {
+   "event": 4,
+   "points": 68,
+   "total_points": 273,
+   "rank": 5794124,
+   "rank_sort": 5808902,
+   "overall_rank": 2513299,
+   "percentile_rank": 55,
+   "bank": 1,
+   "value": 1001,
+   "event_transfers": 2,
+   "event_transfers_cost": 4,
+   "points_on_bench": 4
+  }
+ ],
+ "past": [
+  {
+   "season_name": "2025/26",
+   "total_points": 2200,
+   "rank": 250000
+  }
+ ],
+ "chips": []
+}

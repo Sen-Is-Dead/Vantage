@@ -1,0 +1,42 @@
+# --- secrets: never commit ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+fpl-ai-spec.local.md
+
+# --- python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# --- data / model artefacts (regenerable from DB) ---
+data/raw/
+data/cache/
+models/artifacts/
+*.parquet
+*.sqlite
+*.db
+
+# --- node / next ---
+node_modules/
+.next/
+out/
+.vercel/
+*.tsbuildinfo
+npm-debug.log*
+
+# --- os / editors ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

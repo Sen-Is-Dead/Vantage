@@ -1,0 +1,20 @@
+{
+ "id": 3964630,
+ "summary_overall_points": 273,
+ "summary_overall_rank": 2513222,
+ "current_event": 4,
+ "last_deadline_bank": 1,
+ "last_deadline_value": 1001,
+ "last_deadline_total_transfers": 5,
+ "name": "Manjit's Bandits",
+ "leagues": {
+  "classic": [
+   {
+    "id": 314,
+    "name": "Overall",
+    "entry_rank": 2513222,
+    "entry_last_rank": 1756946
+   }
+  ]
+ }
+}

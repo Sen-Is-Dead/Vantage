@@ -1,0 +1,63 @@
+name: ingest
+
+# Phase 1: manual trigger only. Phase 6 adds the weekly cron in weekly.yml.
+# Secrets: repo -> Settings -> Secrets and variables -> Actions -> DATABASE_URL (Supabase direct, port 5432).
+on:
+  workflow_dispatch:
+    inputs:
+      quick:
+        description: "Skip per-player element-summary histories (fast smoke test)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: pipeline-db
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: vantage_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Unit + DB tests (against a throwaway Postgres, never Supabase)
+        env:
+          TEST_DATABASE_URL: postgresql://postgres:test@localhost:5432/vantage_test
+        run: python -m pytest -q
+
+  ingest:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Ingest FPL -> Supabase
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FPL_TEAM_ID: "3964630"
+          PROTECTED_PLAYERS: "Mbeumo"
+          UNDERSTAT_ENABLED: "false"
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::DATABASE_URL secret is not set"; exit 1; fi
+          python -m pipeline.run_weekly ingest ${{ inputs.quick && '--quick' || '' }} | tee ingest.log
+      - name: Summary
+        run: |
+          { echo '### Ingest result'; echo '```'; cat ingest.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"

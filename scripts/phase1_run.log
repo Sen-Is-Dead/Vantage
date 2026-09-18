@@ -1,0 +1,45 @@
+=== Phase 1 run 18/09/2026 16:33:13.60 === 
+C:\Program Files\PyManager\python.exe
+C:\Users\Manjit\AppData\Local\Microsoft\WindowsApps\python.exe
+C:\Users\Manjit\AppData\Local\Python\bin\python.exe
+Python 3.14.7
+--- pip done, errorlevel 0 
+--- pytest (unit tests only; DB test skipped without TEST_DATABASE_URL) 
+........s                                                                [100%]
+8 passed, 1 skipped in 0.17s
+--- ingest --quick 
+2026-09-18 16:33:16,532 INFO pipeline.ingest.load: bootstrap ok: season=2026/27 current_gw=4 next_gw=5 | teams=0 players=0 fixtures=0 player_gw_stats=0 user_squad=0 entry_state=0 understat=0 free_transfers_now=None
+INGEST OK: season=2026/27 current_gw=4 next_gw=5 | teams=20 players=659 fixtures=380 player_gw_stats=0 user_squad=60 entry_state=4 understat=0 free_transfers_now=2
+teams                    20
+players                  659
+fixtures                 380
+player_gw_stats          0
+user_squad               60
+user_entry_state         4
+understat_player_match   0
+predictions              0
+recommendations          0
+model_runs               0
+--- ingest quick errorlevel 0 
+--- ingest full (per-player histories, 2-5 min) 
+2026-09-18 16:33:18,634 INFO pipeline.ingest.load: bootstrap ok: season=2026/27 current_gw=4 next_gw=5 | teams=0 players=0 fixtures=0 player_gw_stats=0 user_squad=0 entry_state=0 understat=0 free_transfers_now=None
+2026-09-18 16:33:27,181 INFO pipeline.ingest.load: element-summary 100/659
+2026-09-18 16:33:35,352 INFO pipeline.ingest.load: element-summary 200/659
+2026-09-18 16:33:43,583 INFO pipeline.ingest.load: element-summary 300/659
+2026-09-18 16:33:51,895 INFO pipeline.ingest.load: element-summary 400/659
+2026-09-18 16:34:00,163 INFO pipeline.ingest.load: element-summary 500/659
+2026-09-18 16:34:08,404 INFO pipeline.ingest.load: element-summary 600/659
+2026-09-18 16:34:13,312 INFO pipeline.ingest.load: element-summary 659/659
+INGEST OK: season=2026/27 current_gw=4 next_gw=5 | teams=20 players=659 fixtures=380 player_gw_stats=2549 user_squad=60 entry_state=4 understat=0 free_transfers_now=2
+teams                    20
+players                  659
+fixtures                 380
+player_gw_stats          2549
+user_squad               60
+user_entry_state         4
+understat_player_match   0
+predictions              0
+recommendations          0
+model_runs               0
+--- ingest full errorlevel 0 
+=== done === 

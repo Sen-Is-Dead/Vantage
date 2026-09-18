@@ -1,0 +1,236 @@
+{
+ "events": [
+  {
+   "id": 1,
+   "name": "Gameweek 1",
+   "deadline_time": "2026-08-14T17:30:00Z",
+   "finished": true,
+   "is_previous": false,
+   "is_current": false,
+   "is_next": false,
+   "average_entry_score": 60
+  },
+  {
+   "id": 2,
+   "name": "Gameweek 2",
+   "deadline_time": "2026-08-21T17:30:00Z",
+   "finished": true,
+   "is_previous": false,
+   "is_current": false,
+   "is_next": false,
+   "average_entry_score": 60
+  },
+  {
+   "id": 3,
+   "name": "Gameweek 3",
+   "deadline_time": "2026-08-28T17:30:00Z",
+   "finished": true,
+   "is_previous": true,
+   "is_current": false,
+   "is_next": false,
+   "average_entry_score": 60
+  },
+  {
+   "id": 4,
+   "name": "Gameweek 4",
+   "deadline_time": "2026-09-05T17:30:00Z",
+   "finished": true,
+   "is_previous": false,
+   "is_current": true,
+   "is_next": false,
+   "average_entry_score": 60
+  },
+  {
+   "id": 5,
+   "name": "Gameweek 5",
+   "deadline_time": "2026-09-12T17:30:00Z",
+   "finished": false,
+   "is_previous": false,
+   "is_current": false,
+   "is_next": true,
+   "average_entry_score": 60
+  }
+ ],
+ "teams": [
+  {
+   "id": 1,
+   "code": 3,
+   "name": "Arsenal",
+   "short_name": "ARS",
+   "strength": 5,
+   "strength_overall_home": 1350,
+   "strength_overall_away": 1370,
+   "strength_attack_home": 1360,
+   "strength_attack_away": 1380,
+   "strength_defence_home": 1340,
+   "strength_defence_away": 1360
+  },
+  {
+   "id": 4,
+   "code": 94,
+   "name": "Brentford",
+   "short_name": "BRE",
+   "strength": 3,
+   "strength_overall_home": 1120,
+   "strength_overall_away": 1100,
+   "strength_attack_home": 1130,
+   "strength_attack_away": 1110,
+   "strength_defence_home": 1110,
+   "strength_defence_away": 1090
+  },
+  {
+   "id": 14,
+   "code": 1,
+   "name": "Man Utd",
+   "short_name": "MUN",
+   "strength": 4,
+   "strength_overall_home": 1200,
+   "strength_overall_away": 1180,
+   "strength_attack_home": 1210,
+   "strength_attack_away": 1190,
+   "strength_defence_home": 1190,
+   "strength_defence_away": 1170
+  }
+ ],
+ "elements": [
+  {
+   "id": 1,
+   "code": 154561,
+   "web_name": "Raya",
+   "first_name": "David",
+   "second_name": "Raya Martin",
+   "team": 1,
+   "element_type": 1,
+   "now_cost": 60,
+   "cost_change_start": 5,
+   "status": "a",
+   "news": "",
+   "news_added": null,
+   "chance_of_playing_next_round": null,
+   "chance_of_playing_this_round": null,
+   "selected_by_percent": "31.2",
+   "total_points": 22,
+   "form": "5.5",
+   "expected_goals": "0.00",
+   "expected_assists": "0.01"
+  },
+  {
+   "id": 8,
+   "code": 226597,
+   "web_name": "Gabriel",
+   "first_name": "Gabriel",
+   "second_name": "dos Santos Magalh\u00e3es",
+   "team": 1,
+   "element_type": 2,
+   "now_cost": 62,
+   "cost_change_start": 2,
+   "status": "a",
+   "news": "",
+   "news_added": null,
+   "chance_of_playing_next_round": null,
+   "chance_of_playing_this_round": null,
+   "selected_by_percent": "40.1",
+   "total_points": 25,
+   "form": "6.2"
+  },
+  {
+   "id": 165,
+   "code": 215439,
+   "web_name": "Mbeumo",
+   "first_name": "Bryan",
+   "second_name": "Mbeumo",
+   "team": 14,
+   "element_type": 3,
+   "now_cost": 80,
+   "cost_change_start": 0,
+   "status": "a",
+   "news": "",
+   "news_added": null,
+   "chance_of_playing_next_round": null,
+   "chance_of_playing_this_round": null,
+   "selected_by_percent": "25.0",
+   "total_points": 30,
+   "form": "7.5"
+  },
+  {
+   "id": 200,
+   "code": 999001,
+   "web_name": "Injured",
+   "first_name": "Ian",
+   "second_name": "Injured",
+   "team": 4,
+   "element_type": 3,
+   "now_cost": 55,
+   "cost_change_start": -2,
+   "status": "i",
+   "news": "Hamstring injury - Expected back 12 Oct",
+   "news_added": "2026-09-10T10:00:00.123456Z",
+   "chance_of_playing_next_round": 0,
+   "chance_of_playing_this_round": 0,
+   "selected_by_percent": "3.0",
+   "total_points": 8,
+   "form": "1.0"
+  },
+  {
+   "id": 464,
+   "code": 444444,
+   "web_name": "Striker",
+   "first_name": "Sam",
+   "second_name": "Striker",
+   "team": 4,
+   "element_type": 4,
+   "now_cost": 70,
+   "cost_change_start": 1,
+   "status": "a",
+   "news": "",
+   "news_added": null,
+   "chance_of_playing_next_round": 75,
+   "chance_of_playing_this_round": 75,
+   "selected_by_percent": "12.0",
+   "total_points": 20,
+   "form": "4.0"
+  }
+ ],
+ "element_types": [
+  {
+   "id": 1,
+   "singular_name_short": "GKP"
+  },
+  {
+   "id": 2,
+   "singular_name_short": "DEF"
+  },
+  {
+   "id": 3,
+   "singular_name_short": "MID"
+  },
+  {
+   "id": 4,
+   "singular_name_short": "FWD"
+  }
+ ],
+ "chips": [
+  {
+   "id": 1,
+   "name": "wildcard",
+   "number": 1,
+   "start_event": 2,
+   "stop_event": 19
+  },
+  {
+   "id": 2,
+   "name": "wildcard",
+   "number": 1,
+   "start_event": 20,
+   "stop_event": 38
+  }
+ ],
+ "game_settings": {
+  "max_extra_free_transfers": 4,
+  "transfers_cap": 20,
+  "squad_squadsize": 15,
+  "squad_team_limit": 3,
+  "squad_total_spend": 1000
+ },
+ "total_players": 10855914
+}

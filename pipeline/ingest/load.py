@@ -81,17 +81,18 @@ def run_ingest(conn: psycopg.Connection, client: FPLClient | None = None, team_i
     res = IngestResult(season=season, current_gw=gws["current"], next_gw=gws["next"])
     log.info("bootstrap ok: %s", res.summary())
 
-    res.n_teams = upsert(conn, "teams", transform_teams(bootstrap, season), ["id"])
+    res.n_teams = upsert(conn, "teams", transform_teams(bootstrap, season), ["season", "id"])
+    # players is a current-season snapshot: clear rows from any other season first
+    conn.execute("DELETE FROM players WHERE season <> %s", (season,))
     res.n_players = upsert(conn, "players", transform_players(bootstrap, season), ["id"])
-    res.n_fixtures = upsert(conn, "fixtures", transform_fixtures(client.fixtures(), season), ["id"])
+    res.n_fixtures = upsert(conn, "fixtures", transform_fixtures(client.fixtures(), season), ["season", "id"])
     conn.commit()
 
     if include_histories:
-        ids = [e["id"] for e in bootstrap["elements"]]
         rows = fetch_all_player_histories(
-            client, ids, season, progress=lambda i, n: log.info("element-summary %d/%d", i, n)
+            client, bootstrap["elements"], season, progress=lambda i, n: log.info("element-summary %d/%d", i, n)
         )
-        res.n_gw_stats = upsert(conn, "player_gw_stats", rows, ["player_id", "fixture_id"])
+        res.n_gw_stats = upsert(conn, "player_gw_stats", rows, ["season", "player_id", "fixture_id"])
         conn.commit()
 
     # --- the user's entry (read-only) ---

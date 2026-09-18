@@ -144,7 +144,7 @@ def transform_players(bootstrap: dict[str, Any], season: str) -> list[dict[str, 
         rows.append({
             "id": e["id"], "season": season, "code": e.get("code"),
             "web_name": e["web_name"], "first_name": e.get("first_name"), "second_name": e.get("second_name"),
-            "team_id": e["team"], "position": POSITIONS[e["element_type"]],
+            "team_id": e["team"], "team_code": e.get("team_code"), "position": POSITIONS[e["element_type"]],
             "price": e["now_cost"] / 10.0,
             "cost_change_start": (e.get("cost_change_start") or 0) / 10.0,
             "status": e.get("status"), "news": e.get("news") or None, "news_added": _ts(e.get("news_added")),
@@ -169,11 +169,16 @@ def transform_fixtures(fixtures: list[dict[str, Any]], season: str) -> list[dict
     ]
 
 
-def transform_player_history(player_id: int, summary: dict[str, Any], season: str) -> list[dict[str, Any]]:
+def transform_player_history(player_id: int, summary: dict[str, Any], season: str,
+                             meta: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    """`meta` is the player's bootstrap element (for code / position / team); optional for tests."""
+    meta = meta or {}
     rows = []
     for h in summary.get("history", []):
         rows.append({
-            "player_id": player_id, "season": season, "gw": h["round"], "fixture_id": h["fixture"],
+            "season": season, "player_id": player_id, "player_code": meta.get("code"),
+            "position": POSITIONS.get(meta.get("element_type")), "team_id": meta.get("team"),
+            "gw": h["round"], "fixture_id": h["fixture"],
             "opponent_team_id": h.get("opponent_team"), "was_home": h.get("was_home"),
             "kickoff_time": _ts(h.get("kickoff_time")),
             "minutes": h.get("minutes", 0), "points": h.get("total_points", 0),
@@ -191,6 +196,7 @@ def transform_player_history(player_id: int, summary: dict[str, Any], season: st
             "value": (h.get("value") or 0) / 10.0, "selected": h.get("selected"),
             "transfers_in": h.get("transfers_in"), "transfers_out": h.get("transfers_out"),
             "team_h_score": h.get("team_h_score"), "team_a_score": h.get("team_a_score"),
+            "source": "fpl_api",
         })
     return rows
 
@@ -258,15 +264,16 @@ def transform_entry_state(history: dict[str, Any], picks_by_gw: dict[int, dict[s
     return rows
 
 
-def fetch_all_player_histories(client: FPLClient, player_ids: Iterable[int], season: str,
+def fetch_all_player_histories(client: FPLClient, elements: Iterable[dict[str, Any]], season: str,
                                progress: Callable[[int, int], None] | None = None) -> list[dict[str, Any]]:
-    ids = list(player_ids)
+    elems = list(elements)
     rows: list[dict[str, Any]] = []
-    for i, pid in enumerate(ids, 1):
+    for i, e in enumerate(elems, 1):
+        pid = e["id"]
         try:
-            rows.extend(transform_player_history(pid, client.element_summary(pid), season))
+            rows.extend(transform_player_history(pid, client.element_summary(pid), season, meta=e))
         except FileNotFoundError:
             log.warning("element-summary 404 for player %s (removed?)", pid)
-        if progress and (i % 100 == 0 or i == len(ids)):
-            progress(i, len(ids))
+        if progress and (i % 100 == 0 or i == len(elems)):
+            progress(i, len(elems))
     return rows

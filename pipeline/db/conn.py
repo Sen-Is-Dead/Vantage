@@ -16,7 +16,18 @@ SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
 @contextmanager
 def get_conn(url: str | None = None) -> Iterator[psycopg.Connection]:
-    conn = psycopg.connect(url or database_url(), row_factory=dict_row, connect_timeout=20)
+    url = url or database_url()
+    try:
+        conn = psycopg.connect(url, row_factory=dict_row, connect_timeout=20)
+    except psycopg.OperationalError as exc:
+        if "resolve host" in str(exc) and ".supabase.co" in url:
+            raise RuntimeError(
+                "Cannot resolve the Supabase direct host. Supabase's db.<ref>.supabase.co hosts are IPv6-only; "
+                "on an IPv4-only network (most home ISPs, GitHub Actions runners) use the *Session pooler* string "
+                "instead: Supabase -> Connect -> Session pooler "
+                "(postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres)."
+            ) from exc
+        raise
     try:
         yield conn
         conn.commit()
@@ -51,16 +62,40 @@ def upsert(
         )
     else:
         action = sql.SQL("DO NOTHING")
-    stmt = sql.SQL("INSERT INTO {t} ({cols}) VALUES ({vals}) ON CONFLICT ({keys}) {action}").format(
-        t=sql.Identifier(table),
-        cols=sql.SQL(", ").join(map(sql.Identifier, cols)),
-        vals=sql.SQL(", ").join(sql.Placeholder(c) for c in cols),
-        keys=sql.SQL(", ").join(map(sql.Identifier, key_cols)),
-        action=action,
-    )
+    col_list = sql.SQL(", ").join(map(sql.Identifier, cols))
+    keys = sql.SQL(", ").join(map(sql.Identifier, key_cols))
     with conn.cursor() as cur:
-        cur.executemany(stmt, rows)
+        if len(rows) < COPY_THRESHOLD:
+            stmt = sql.SQL("INSERT INTO {t} ({cols}) VALUES ({vals}) ON CONFLICT ({keys}) {action}").format(
+                t=sql.Identifier(table), cols=col_list,
+                vals=sql.SQL(", ").join(sql.Placeholder(c) for c in cols), keys=keys, action=action,
+            )
+            cur.executemany(stmt, rows)
+        else:
+            # big batches (historical seasons): COPY into a temp table, then one INSERT ... ON CONFLICT.
+            # Orders of magnitude faster than executemany over a remote (Supabase) connection.
+            tmp = sql.Identifier(f"_tmp_{table}")
+            cur.execute(sql.SQL("CREATE TEMP TABLE {tmp} (LIKE {t} INCLUDING DEFAULTS) ON COMMIT DROP").format(tmp=tmp, t=sql.Identifier(table)))
+            with cur.copy(sql.SQL("COPY {tmp} ({cols}) FROM STDIN").format(tmp=tmp, cols=col_list)) as cp:
+                for r in rows:
+                    cp.write_row([_copy_value(r[c]) for c in cols])
+            cur.execute(sql.SQL("INSERT INTO {t} ({cols}) SELECT {cols} FROM {tmp} ON CONFLICT ({keys}) {action}").format(
+                t=sql.Identifier(table), cols=col_list, tmp=tmp, keys=keys, action=action))
     return len(rows)
+
+
+COPY_THRESHOLD = 2000
+
+
+def _copy_value(v: Any) -> Any:
+    """COPY needs plain Python types; numpy scalars and NaN become native / NULL."""
+    if v is None:
+        return None
+    if hasattr(v, "item"):  # numpy scalar
+        v = v.item()
+    if isinstance(v, float) and v != v:  # NaN
+        return None
+    return v
 
 
 def scalar(conn: psycopg.Connection, query: str, params: Sequence[Any] | None = None) -> Any:

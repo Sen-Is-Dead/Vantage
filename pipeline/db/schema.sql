@@ -3,9 +3,11 @@
 -- user_squad, user_entry_state) are kept separate from derived tables (predictions, model_runs,
 -- recommendations) so models can always be retrained from scratch against history.
 
+-- Multi-season: FPL re-issues team/player/fixture ids every season, so raw tables carry `season`
+-- in their key. `players.code` and `teams.code` are the stable cross-season identifiers.
 CREATE TABLE IF NOT EXISTS teams (
-    id                    INTEGER PRIMARY KEY,          -- FPL team id (1..20, per season)
     season                TEXT NOT NULL,                -- e.g. '2026/27'
+    id                    INTEGER NOT NULL,             -- FPL team id (1..20, per season)
     code                  INTEGER,                      -- stable cross-season club code
     name                  TEXT NOT NULL,
     short_name            TEXT,
@@ -16,9 +18,11 @@ CREATE TABLE IF NOT EXISTS teams (
     strength_attack_away  INTEGER,
     strength_defence_home INTEGER,
     strength_defence_away INTEGER,
-    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (season, id)
 );
 
+-- Current-season player snapshot (price, status, news). History lives in player_gw_stats.
 CREATE TABLE IF NOT EXISTS players (
     id                            INTEGER PRIMARY KEY,   -- FPL element id (per season)
     season                        TEXT NOT NULL,
@@ -26,7 +30,8 @@ CREATE TABLE IF NOT EXISTS players (
     web_name                      TEXT NOT NULL,
     first_name                    TEXT,
     second_name                   TEXT,
-    team_id                       INTEGER REFERENCES teams(id),
+    team_id                       INTEGER,
+    team_code                     INTEGER,
     position                      TEXT NOT NULL CHECK (position IN ('GKP','DEF','MID','FWD')),
     price                         NUMERIC(5,1) NOT NULL, -- in £m (now_cost / 10)
     cost_change_start             NUMERIC(5,1),          -- £m change since season start
@@ -44,12 +49,12 @@ CREATE INDEX IF NOT EXISTS players_team_idx ON players(team_id);
 CREATE INDEX IF NOT EXISTS players_code_idx ON players(code);
 
 CREATE TABLE IF NOT EXISTS fixtures (
-    id               INTEGER PRIMARY KEY,               -- FPL fixture id
     season           TEXT NOT NULL,
+    id               INTEGER NOT NULL,                   -- FPL fixture id (per season)
     code             INTEGER,
     gw               INTEGER,                            -- NULL until the fixture is scheduled into an event
-    home_team_id     INTEGER REFERENCES teams(id),
-    away_team_id     INTEGER REFERENCES teams(id),
+    home_team_id     INTEGER,
+    away_team_id     INTEGER,
     kickoff_time     TIMESTAMPTZ,
     difficulty_home  INTEGER,                            -- FPL FDR faced by the home side
     difficulty_away  INTEGER,
@@ -57,14 +62,19 @@ CREATE TABLE IF NOT EXISTS fixtures (
     started          BOOLEAN NOT NULL DEFAULT false,
     home_score       INTEGER,
     away_score       INTEGER,
-    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (season, id)
 );
-CREATE INDEX IF NOT EXISTS fixtures_gw_idx ON fixtures(gw);
+CREATE INDEX IF NOT EXISTS fixtures_gw_idx ON fixtures(season, gw);
 
--- One row per player per fixture actually played/scheduled in (a double gameweek gives 2 rows for the same gw).
+-- One row per player per fixture (a double gameweek gives 2 rows for the same gw). Current season comes
+-- from the FPL API; past seasons from the vaastav/Fantasy-Premier-League archive (pipeline/ingest/history.py).
 CREATE TABLE IF NOT EXISTS player_gw_stats (
-    player_id                 INTEGER NOT NULL REFERENCES players(id),
     season                    TEXT NOT NULL,
+    player_id                 INTEGER NOT NULL,           -- per-season FPL element id
+    player_code               INTEGER,                    -- stable cross-season id
+    position                  TEXT,                       -- GKP/DEF/MID/FWD as of that season
+    team_id                   INTEGER,
     gw                        INTEGER NOT NULL,
     fixture_id                INTEGER NOT NULL,
     opponent_team_id          INTEGER,
@@ -100,11 +110,12 @@ CREATE TABLE IF NOT EXISTS player_gw_stats (
     transfers_out             INTEGER,
     team_h_score              INTEGER,
     team_a_score              INTEGER,
+    source                    TEXT NOT NULL DEFAULT 'fpl_api',  -- fpl_api | vaastav
     updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (player_id, fixture_id)
+    PRIMARY KEY (season, player_id, fixture_id)
 );
 CREATE INDEX IF NOT EXISTS pgs_gw_idx ON player_gw_stats(season, gw);
-CREATE INDEX IF NOT EXISTS pgs_player_idx ON player_gw_stats(player_id, gw);
+CREATE INDEX IF NOT EXISTS pgs_code_idx ON player_gw_stats(player_code, season, gw);
 
 -- Optional supplementary xG/xA from Understat (per player per match). Empty if scraping is disabled/fails.
 CREATE TABLE IF NOT EXISTS understat_player_match (
@@ -128,7 +139,7 @@ CREATE TABLE IF NOT EXISTS understat_player_match (
 CREATE TABLE IF NOT EXISTS user_squad (
     season           TEXT NOT NULL,
     gw               INTEGER NOT NULL,
-    player_id        INTEGER NOT NULL REFERENCES players(id),
+    player_id        INTEGER NOT NULL,
     is_starting      BOOLEAN NOT NULL,
     is_captain       BOOLEAN NOT NULL DEFAULT false,
     is_vice_captain  BOOLEAN NOT NULL DEFAULT false,
@@ -173,15 +184,16 @@ CREATE TABLE IF NOT EXISTS model_runs (
 );
 
 CREATE TABLE IF NOT EXISTS predictions (
-    player_id              INTEGER NOT NULL REFERENCES players(id),
     season                 TEXT NOT NULL,
+    player_id              INTEGER NOT NULL,
     gw                     INTEGER NOT NULL,
+    as_of_gw               INTEGER,                       -- last finished gw the features were built from
     predicted_points       NUMERIC(6,2) NOT NULL,
     predicted_points_low   NUMERIC(6,2),
     predicted_points_high  NUMERIC(6,2),
     model_version          TEXT NOT NULL,
     predicted_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (player_id, season, gw, model_version)
+    PRIMARY KEY (season, player_id, gw, model_version)
 );
 CREATE INDEX IF NOT EXISTS predictions_gw_idx ON predictions(season, gw);
 

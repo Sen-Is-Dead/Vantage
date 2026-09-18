@@ -17,6 +17,10 @@ pipeline/            Python 3.11: ingest -> features -> models -> optimizer
   ingest/fpl_api.py  FPL public API client + pure transforms (GET only)
   ingest/understat.py optional supplementary xG (off by default)
   ingest/load.py     one idempotent ingestion run
+  ingest/history.py  past seasons from the vaastav/Fantasy-Premier-League archive
+  features/build_features.py  point-in-time features (rolling 3/5/10 + EWM form, fixtures, price, priors)
+  models/train.py    one LightGBM regressor per position (+ q20/q80 quantile models), time-ordered eval
+  models/predict.py  refit on everything, predict next 1..5 GWs, apply availability
   run_weekly.py      CLI entrypoint used by GitHub Actions
 dashboard/           Next.js on Vercel (Phase 7)
 .github/workflows/   ingest.yml (manual), weekly.yml (Phase 6 cron)
@@ -31,8 +35,13 @@ pip install -r requirements.txt
 cp .env.example .env                                 # then fill in DATABASE_URL (never commit .env)
 python -m pipeline.run_weekly ingest --quick         # ~10s smoke test: teams, players, fixtures, your squad
 python -m pipeline.run_weekly ingest                 # full: + per-player gameweek histories (~700 requests, 2-5 min)
+python -m pipeline.run_weekly history                # 4 past seasons (~25 MB download), needed to train anything
+python -m pipeline.run_weekly train --positions MID  # evaluate on held-out 2025/26, log MAE to model_runs
+python -m pipeline.run_weekly predict --positions MID  # refit on all data, write predictions for the next 5 GWs
 python -m pipeline.run_weekly counts
 ```
+
+`reset-db --yes` drops every table (all data is regenerable from the FPL API and the archive).
 
 Tests (unit tests need nothing; the DB test needs any throwaway Postgres):
 

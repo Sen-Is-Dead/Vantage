@@ -269,3 +269,33 @@ CREATE TABLE IF NOT EXISTS chip_windows (
     number       INTEGER,
     PRIMARY KEY (season, name, start_event)
 );
+
+-- Job queue (Phase 7b): the dashboard inserts a row and fires a GitHub Actions workflow_dispatch;
+-- the runner claims the row, executes it and streams status back here. Nothing in this table can
+-- submit to FPL: the only kinds are refresh/weekly/simulate, all of which are read-FPL, write-ours.
+CREATE TABLE IF NOT EXISTS jobs (
+    id            SERIAL PRIMARY KEY,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    started_at    TIMESTAMPTZ,
+    finished_at   TIMESTAMPTZ,
+    kind          TEXT NOT NULL,                    -- refresh | weekly | simulate
+    status        TEXT NOT NULL DEFAULT 'queued',   -- queued | running | success | failed
+    label         TEXT,
+    params_json   JSONB NOT NULL DEFAULT '{}'::jsonb,
+    result_json   JSONB,
+    progress      TEXT,
+    log_tail      TEXT,
+    error         TEXT,
+    run_url       TEXT
+);
+CREATE INDEX IF NOT EXISTS jobs_status_idx  ON jobs (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS jobs_created_idx ON jobs (created_at DESC);
+
+-- Simulations are backtests with a parameter set attached, so runs stay comparable after the fact.
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS params_json JSONB;
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS job_id      INTEGER;
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS label       TEXT;
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS n_repeats   INTEGER;
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS points_sd   NUMERIC(8,2);
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS points_p10  NUMERIC(8,1);
+ALTER TABLE backtests ADD COLUMN IF NOT EXISTS points_p90  NUMERIC(8,1);

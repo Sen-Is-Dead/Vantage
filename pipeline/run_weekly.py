@@ -6,6 +6,8 @@
     python -m pipeline.run_weekly predict [--positions MID] [--horizon 5]   # refit on everything, write predictions
     python -m pipeline.run_weekly recommend [--horizon 5]  # transfers / XI / captain for the next GW -> recommendations
     python -m pipeline.run_weekly backtest --season 2025/26 [--mode realistic|free_hit] [--strategy model|naive_last5]
+    python -m pipeline.run_weekly simulate --params '{"season":"2025/26","mode":"free_hit"}'  # full knob set
+    python -m pipeline.run_weekly job --id 12                # run a row queued by the dashboard
     python -m pipeline.run_weekly all                      # Phase 6: the weekly job (ingest, history if empty,
                                                            #   accuracy, train-eval, predict, recommend)
     python -m pipeline.run_weekly counts
@@ -119,6 +121,28 @@ def cmd_backtest(conn, args) -> None:
     return results
 
 
+def cmd_simulate(conn, args) -> list[dict]:
+    """Same engine the Simulate page drives, from the command line."""
+    from pipeline.simulate import SimConfig, run_simulation
+
+    params = json.loads(args.params)
+    seasons = params.pop("seasons", None) or [params.pop("season")]
+    params.pop("season", None)
+    out = []
+    for season in seasons:
+        cfg = SimConfig(season=season, **params)
+        s = run_simulation(conn, cfg, progress=lambda m: print(f"  .. {m}")).summary()
+        out.append(s)
+        spread = (f" (sd {s['total_points_sd']:.0f}, p10-p90 {s['total_points_p10']:.0f}-{s['total_points_p90']:.0f})"
+                  if cfg.repeats > 1 else "")
+        print(f"\nSIM {season} {cfg.mode}/{cfg.strategy}: {s['total_points_mean']:.0f} pts{spread} over "
+              f"GW{cfg.start_gw}-{cfg.end_gw} ({s['avg_per_gw']}/gw), captain {s['captain_points']:.0f}, "
+              f"{s['transfers_total']} transfers, {s['hits_total']} hits, {s['bench_points']:.0f} left on the bench")
+        if s["chips"]:
+            print("  chips: " + ", ".join(f"{c} GW{g}" for c, g in s["chips"].items()))
+    return out
+
+
 def cmd_all(conn, args) -> int:
     """The weekly job. Each step logs; a failure in accuracy/train-eval is reported but does not stop
     predict + recommend, because a stale recommendation is worse than a missing MAE line."""
@@ -212,6 +236,14 @@ def main(argv: list[str] | None = None) -> int:
     p_bt.add_argument("--rounds", type=int, default=300)
     p_bt.add_argument("--horizon", type=int, default=5, help="gameweeks of look-ahead used to value transfers")
 
+    p_sim = sub.add_parser("simulate", help="parameterised season replay (the dashboard's Simulate page)")
+    p_sim.add_argument("--params", required=True,
+                       help='JSON of pipeline.simulate.SimConfig fields, e.g. \'{"season":"2025/26","mode":"free_hit"}\'. '
+                            'May also carry "seasons": [...] to replay several in one go.')
+
+    p_job = sub.add_parser("job", help="execute a queued row from the jobs table (what Actions calls)")
+    p_job.add_argument("--id", type=int, required=True)
+
     p_all = sub.add_parser("all", help="the weekly job: ingest, history, accuracy, train-eval, predict, recommend")
     p_all.add_argument("--quick", action="store_true", help="skip element-summary histories (smoke test only)")
 
@@ -222,6 +254,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    if args.cmd == "job":
+        from pipeline.jobs import run_job
+
+        return run_job(args.id)
 
     with get_conn() as conn:
         if args.cmd == "reset-db":
@@ -252,6 +289,9 @@ def main(argv: list[str] | None = None) -> int:
         elif args.cmd == "backtest":
             apply_schema(conn)
             cmd_backtest(conn, args)
+        elif args.cmd == "simulate":
+            apply_schema(conn)
+            cmd_simulate(conn, args)
         elif args.cmd == "all":
             apply_schema(conn)
             cmd_all(conn, args)

@@ -60,3 +60,46 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .filters a.active { font-weight: 700; color: var(--text); }
 footer { color: var(--muted); font-size: 12px; margin: 30px 0 10px; text-align: center; }
 @media (max-width: 640px) { .card { min-width: 120px; } th, td { padding: 5px 6px; } }
+
+/* ---- run controls, job panel and the simulate form ---- */
+.runbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn { font: inherit; cursor: pointer; border-radius: 8px; padding: 8px 14px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); }
+.btn:hover:not(:disabled) { border-color: var(--muted); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #0f1115; font-weight: 700; }
+.btn.link { background: none; border: none; padding: 0; color: var(--info); text-decoration: underline; }
+label.check { display: flex; gap: 6px; align-items: center; margin-top: 6px; cursor: pointer; }
+label.check input { accent-color: var(--accent); }
+
+.pill { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px;
+  border: 1px solid var(--border); text-transform: uppercase; letter-spacing: .04em; }
+.pill.queued { color: var(--muted); }
+.pill.running { color: var(--warn); border-color: var(--warn); }
+.pill.success { color: var(--accent); border-color: var(--accent); }
+.pill.failed { color: var(--danger); border-color: var(--danger); }
+table.jobs td { vertical-align: top; white-space: normal; }
+tr.active { background: rgba(255, 181, 71, .07); }
+.err { color: var(--danger); }
+.detail pre { background: var(--panel-2); border-radius: 8px; padding: 10px; overflow-x: auto; font-size: 12px;
+  margin: 4px 0 10px; white-space: pre-wrap; word-break: break-word; }
+.detail pre.log { max-height: 320px; overflow-y: auto; }
+
+.presets { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.preset { text-align: left; display: flex; flex-direction: column; gap: 4px; cursor: pointer; font: inherit;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text); }
+.preset:hover { border-color: var(--accent); }
+
+.field { margin-bottom: 12px; }
+.field > label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+.field .hint { margin-top: 4px; }
+.field input[type="text"], .field input[type="number"], .field input:not([type]), .field select {
+  font: inherit; width: 100%; max-width: 360px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--text); }
+.field input[type="range"] { width: 100%; max-width: 360px; accent-color: var(--accent); }
+.grid2 { display: grid; gap: 0 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.chips-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { font: inherit; font-size: 13px; cursor: pointer; padding: 4px 12px; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--panel-2); color: var(--muted); }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #0f1115; font-weight: 700; }

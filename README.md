@@ -113,3 +113,59 @@ page load with no redeploy.
 
 Local: `cd dashboard && npm install && DATABASE_URL_POOLED=... npm run dev` (or put it in the
 repo-root `.env`, which `next dev` does not read; export it in the shell instead).
+
+## On-demand runs and the simulator
+
+The dashboard can start pipeline work instead of only reading its output. It still cannot submit
+anything to FPL: the only three job kinds are `refresh`, `weekly` and `simulate`, all of which read
+the FPL API and write to our own Postgres.
+
+How a button turns into a run:
+
+1. The page POSTs to `/api/run`, which validates and clamps the parameters, writes a row to the
+   `jobs` table, and fires a `workflow_dispatch` on `.github/workflows/run.yml` with that row's id.
+2. The runner calls `python -m pipeline.run_weekly job --id N`. `pipeline/jobs.py` claims the row and
+   streams `progress` and a rolling `log_tail` back into it over a separate connection.
+3. The dashboard polls `/api/jobs` and reloads itself when the run finishes.
+
+**Run prediction now** (home page) does ingest, predict and recommend, which is the Tuesday job
+without the accuracy and held-out training steps. Tick *full job* for all six steps.
+
+**Simulate** (`/simulate`) replays a season under a policy you choose and scores every gameweek on
+what actually happened. Presets cover the usual questions; everything stays editable. The knobs:
+
+| Group | Controls |
+| --- | --- |
+| Scope | up to four seasons at once, gameweek range, `realistic` vs `free_hit`, model vs naive baseline |
+| Model | refit cadence, boosting rounds, transfer-valuation horizon |
+| Transfers | hit risk premium, max transfers per gameweek, roll threshold, hits on/off, 50% sell-on fee |
+| Squad | bench weight, forced formation, always-own and never-own lists |
+| Captaincy | mean, q20 floor, q80 ceiling, or a blend by risk appetite |
+| Chips | none, the live threshold policy, or perfect hindsight for Bench Boost and Triple Captain |
+| Noise | 1-25 Monte Carlo repeats, resampling each prediction inside its own q20/q80 band |
+
+Every run is stored in `backtests` with its full parameter set in `params_json`, so the Past
+simulations table can show what actually differed between two runs.
+
+Two limits keep an open dashboard from being abused: one job at a time, and 40 runs per 24 hours.
+Set `RUN_SECRET` in Vercel to also require a password (`x-run-secret` header); leaving it unset
+keeps the buttons open.
+
+### Extra deployment settings
+
+In Vercel, alongside `DATABASE_URL_POOLED`:
+
+- `GITHUB_DISPATCH_TOKEN` - a fine-grained personal access token, **this repository only**, with
+  *Actions: read and write*. Without it the buttons return a 502 explaining exactly this.
+- `GITHUB_REPO` - optional, defaults to `Sen-Is-Dead/Vantage`.
+- `RUN_SECRET` - optional password, as above.
+
+The runner needs the existing `DATABASE_URL` Actions secret and nothing new.
+
+### A note on the free-hit numbers
+
+The original harness gave `free_hit` a budget of bank plus the selling value of the squad it was
+already holding, so from the second gameweek on it was picking from roughly 200.0 rather than 100.0
+and the "unlimited transfers" totals were inflated. It now rebuilds on a fresh 100.0 every week.
+Any free-hit total recorded before this change, including the 2054 quoted above, is too high and
+should be re-run rather than compared against.

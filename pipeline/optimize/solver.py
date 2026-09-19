@@ -47,9 +47,12 @@ def solve_squad(players: pd.DataFrame, budget: float, current_squad: list[int] |
                 locked: set[int] | None = None, banned: set[int] | None = None,
                 xi_col: str = "xi_value", squad_col: str = "squad_value",
                 captain_col: str | None = None, triple_captain: bool = False,
-                bench_weight: float = BENCH_WEIGHT, time_limit: int = 60) -> Solution:
+                bench_weight: float = BENCH_WEIGHT, time_limit: int = 60,
+                xi_shape: tuple[int, int, int] | None = None) -> Solution:
     """`players` needs columns: player_id, position, team_id, price, xi_col, squad_col.
-    `budget` is the total spend allowed (bank + selling value of the current squad)."""
+    `budget` is the total spend allowed (bank + selling value of the current squad).
+    `xi_shape` forces an exact formation as (DEF, MID, FWD) counts; None leaves the XI free
+    inside the usual 3-5 / 2-5 / 1-3 bounds."""
     p = players.drop_duplicates("player_id").reset_index(drop=True)
     p = p[p["position"].isin(SQUAD_COMPOSITION)]
     ids = p["player_id"].tolist()
@@ -78,10 +81,15 @@ def solve_squad(players: pd.DataFrame, budget: float, current_squad: list[int] |
 
     pos_of = dict(zip(ids, p["position"]))
     team_of = dict(zip(ids, p["team_id"]))
+    exact = {"GKP": 1, "DEF": xi_shape[0], "MID": xi_shape[1], "FWD": xi_shape[2]} if xi_shape else None
     for pos, n in SQUAD_COMPOSITION.items():
         prob += pulp.lpSum(s[i] for i in ids if pos_of[i] == pos) == n
-        prob += pulp.lpSum(l[i] for i in ids if pos_of[i] == pos) >= XI_MIN[pos]
-        prob += pulp.lpSum(l[i] for i in ids if pos_of[i] == pos) <= XI_MAX[pos]
+        in_xi = pulp.lpSum(l[i] for i in ids if pos_of[i] == pos)
+        if exact is not None:
+            prob += in_xi == exact[pos]
+        else:
+            prob += in_xi >= XI_MIN[pos]
+            prob += in_xi <= XI_MAX[pos]
     prob += pulp.lpSum(l[i] for i in ids) == 11
     prob += pulp.lpSum(c[i] for i in ids) == 1
     prob += pulp.lpSum(v[i] for i in ids) == 1

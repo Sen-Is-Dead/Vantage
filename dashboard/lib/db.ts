@@ -1,6 +1,7 @@
-// Read-only Postgres access for the dashboard. Uses DATABASE_URL_POOLED (Supabase transaction
-// pooler, port 6543) so serverless invocations share pooled connections. Falls back to
-// DATABASE_URL for local development. Nothing in the dashboard ever writes.
+// Postgres access for the dashboard. Uses DATABASE_URL_POOLED (Supabase transaction pooler, port
+// 6543) so serverless invocations share pooled connections. Falls back to DATABASE_URL for local
+// development. Everything in this file reads; the only writes the dashboard makes anywhere are the
+// job rows in lib/jobs.ts, which queue pipeline work. Nothing here can submit to FPL.
 import { Pool } from "pg";
 
 declare global {
@@ -118,6 +119,33 @@ export async function backtestRows() {
   return query<{ id: number; run_date: string; season: string; mode: string; strategy: string; start_gw: number; end_gw: number; total_points: number; notes: string | null }>(
     "SELECT id, run_date, season, mode, strategy, start_gw, end_gw, total_points::float AS total_points, notes FROM backtests ORDER BY season DESC, run_date DESC LIMIT 20"
   );
+}
+
+export type SimRun = {
+  id: number; run_date: string; season: string; mode: string; strategy: string; label: string | null;
+  start_gw: number; end_gw: number; total_points: number; n_repeats: number | null;
+  points_sd: number | null; points_p10: number | null; points_p90: number | null;
+  params_json: Record<string, unknown> | null; notes: string | null; job_id: number | null;
+};
+
+/** Every simulation ever run, newest first, with the parameters that produced it. */
+export async function simulationRuns(limit = 40) {
+  return query<SimRun>(
+    `SELECT id, run_date, season, mode, strategy, label, start_gw, end_gw,
+            total_points::float AS total_points, n_repeats,
+            points_sd::float AS points_sd, points_p10::float AS points_p10, points_p90::float AS points_p90,
+            params_json, notes, job_id
+       FROM backtests ORDER BY run_date DESC LIMIT $1`,
+    [limit]
+  );
+}
+
+/** Seasons with gameweek data loaded, so the form only offers ones that can actually be replayed. */
+export async function availableSeasons() {
+  const rows = await query<{ season: string; n: number }>(
+    "SELECT season, count(*)::int AS n FROM player_gw_stats GROUP BY season HAVING count(*) > 1000 ORDER BY season DESC"
+  );
+  return rows.map((r) => r.season);
 }
 
 export async function lastIngest() {

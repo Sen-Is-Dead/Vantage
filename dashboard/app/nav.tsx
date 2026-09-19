@@ -6,6 +6,7 @@ const links = [
   ["/", "Recommendation"],
   ["/predictions", "Predictions"],
   ["/accuracy", "Accuracy"],
+  ["/simulate", "Simulate"],
 ];
 
 export function Nav() {

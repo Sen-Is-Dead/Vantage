@@ -1,0 +1,85 @@
+name: run
+
+# On-demand jobs fired by the dashboard's buttons. The dashboard inserts a row in the `jobs` table
+# and dispatches this workflow with that row's id; pipeline/jobs.py claims the row, runs it, and
+# streams progress and a log tail back into it so the dashboard can show what is happening.
+#
+# Like every other workflow here it READS the FPL public API and WRITES only to our own Postgres.
+# It never submits anything to FPL.
+#
+# Secret required: DATABASE_URL (Supabase Session pooler string, port 5432).
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "jobs.id to execute"
+        required: true
+        type: string
+      kind:
+        description: "refresh | weekly | simulate (only picks the concurrency lane)"
+        required: false
+        default: "refresh"
+        type: string
+
+# Simulations read the same tables but write only to `backtests`, so they get their own lane and a
+# long season replay never delays the Tuesday job.
+concurrency:
+  group: ${{ inputs.kind == 'simulate' && 'pipeline-sim' || 'pipeline-db' }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # A full-season replay with quantile models and Monte Carlo repeats is the long pole here.
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Execute job ${{ inputs.job_id }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FPL_TEAM_ID: "3964630"
+          PROTECTED_PLAYERS: "Mbeumo"
+          UNDERSTAT_ENABLED: "false"
+          PYTHONUTF8: "1"
+        run: |
+          if [ -z "$DATABASE_URL" ]; then echo "::error::DATABASE_URL secret is not set"; exit 1; fi
+          python -m pipeline.run_weekly job --id "${{ inputs.job_id }}" 2>&1 | tee job.log
+          test "${PIPESTATUS[0]}" -eq 0
+
+      # If the runner itself dies (timeout, OOM, a bad install) the Python never gets to mark the
+      # row, so the dashboard would show "running" forever. Close it out here instead.
+      - name: Mark the job failed if the runner died
+        if: failure()
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JOB_ID: ${{ inputs.job_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import os, psycopg
+          with psycopg.connect(os.environ["DATABASE_URL"]) as c:
+              c.execute(
+                  "UPDATE jobs SET status='failed', finished_at=now(), progress='failed', "
+                  "error=coalesce(error, 'the workflow run failed or timed out; see run_url'), "
+                  "run_url=coalesce(run_url, %s) WHERE id=%s AND status IN ('queued','running')",
+                  (os.environ["RUN_URL"], int(os.environ["JOB_ID"])),
+              )
+          PY
+
+      - name: Log -> job summary
+        if: always()
+        run: |
+          { echo "### Job ${{ inputs.job_id }} (${{ inputs.kind }})"; echo '```';
+            grep -v '^20[0-9][0-9]-' job.log | tail -80; echo '```'; } >> "$GITHUB_STEP_SUMMARY" || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: job-${{ inputs.job_id }}-log
+          path: job.log
+          retention-days: 14

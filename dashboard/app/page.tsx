@@ -1,4 +1,5 @@
 import { latestEntryState, latestRecommendation, lastIngest, recentRecommendations, type SquadPlayer } from "@/lib/db";
+import { HomeRun } from "./run-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,12 @@ function Player({ p }: { p: SquadPlayer }) {
 export default async function Home() {
   const [rec, state, ingest, history] = await Promise.all([latestRecommendation(), latestEntryState(), lastIngest(), recentRecommendations(8)]);
   if (!rec) {
-    return <div className="panel"><h2>No recommendation yet</h2><p>Run <code>python -m pipeline.run_weekly all</code> (or wait for the Tuesday job).</p></div>;
+    return (
+      <>
+        <HomeRun />
+        <div className="panel"><h2>No recommendation yet</h2><p>Use the button above, run <code>python -m pipeline.run_weekly all</code> locally, or wait for the Tuesday job.</p></div>
+      </>
+    );
   }
   const t = rec.transfers_json;
   const w = rec.warnings_json;
@@ -38,6 +44,7 @@ export default async function Home() {
 
   return (
     <>
+      <HomeRun />
       {w?.warnings?.map((m, i) => <div key={i} className="banner danger">⚠ {m}</div>)}
       {rec.chip_used && <div className="banner warn">Chip suggested for GW{rec.gw}: <b>{rec.chip_plan_json?.[rec.chip_used]?.label ?? rec.chip_used}</b>. See the chip table below before deciding.</div>}
 

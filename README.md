@@ -26,7 +26,7 @@ pipeline/            Python 3.11: ingest -> features -> models -> optimizer
   optimize/chips.py  chip timing: each chip alone, per candidate GW vs no-chip baseline, thresholds
   backtest.py        replay a past season GW by GW with point-in-time refits; model vs naive manager
   run_weekly.py      CLI entrypoint used by GitHub Actions
-dashboard/           Next.js on Vercel (Phase 7)
+dashboard/           Next.js 16 (App Router, server components) on Vercel; reads Postgres via DATABASE_URL_POOLED, read-only
 .github/workflows/   weekly.yml (Tuesday 03:00 UTC cron + manual), ingest.yml (manual ingest only)
 tests/               pytest; fixtures mirror real FPL API shapes
 ```
@@ -97,3 +97,19 @@ on a held-out season (`model_runs`), refit on everything and write `predictions`
 gameweeks, and write one `recommendations` row. The recommendation is copied into the run's job
 summary (Actions tab) and the full log is kept as an artifact for 30 days. Nothing is ever
 submitted to FPL; you read the recommendation and act on it yourself.
+
+## Dashboard (Vercel)
+
+`dashboard/` is a Next.js app that reads the same Postgres tables (read-only) and shows the latest
+recommendation (transfers, XI, bench, captain, chips, warnings), the prediction table, and the
+accuracy / model-run / backtest history. It talks to Postgres directly with `pg` through
+`DATABASE_URL_POOLED` (Supabase transaction pooler, port 6543); the Supabase client SDK and the
+`NEXT_PUBLIC_*` keys are not used, so nothing database-related ever reaches the browser.
+
+Deploy: in the Vercel project set **Root Directory = `dashboard`** (framework auto-detects Next.js),
+add the environment variable `DATABASE_URL_POOLED`, and connect the GitHub repo; every push to
+`main` redeploys. Pages are rendered on demand, so the Tuesday pipeline run shows up on the next
+page load with no redeploy.
+
+Local: `cd dashboard && npm install && DATABASE_URL_POOLED=... npm run dev` (or put it in the
+repo-root `.env`, which `next dev` does not read; export it in the shell instead).

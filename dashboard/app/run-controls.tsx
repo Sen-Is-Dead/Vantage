@@ -33,6 +33,8 @@ function elapsed(job: Job): string {
 export function useJobs(pollMs = 4000) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loaded, setLoaded] = useState(false);
+  // false once the API tells us the pipeline has not created the jobs table yet
+  const [ready, setReady] = useState(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // the polling loop reads the latest jobs without re-subscribing on every change
   const jobsRef = useRef<Job[]>([]);
@@ -43,6 +45,7 @@ export function useJobs(pollMs = 4000) {
       const res = await fetch("/api/jobs?limit=8", { cache: "no-store" });
       const body = await res.json();
       if (Array.isArray(body.jobs)) setJobs(body.jobs);
+      if (typeof body.ready === "boolean") setReady(body.ready);
     } catch {
       /* a dropped poll is not worth showing; the next one will land */
     } finally {
@@ -66,7 +69,7 @@ export function useJobs(pollMs = 4000) {
     };
   }, [refresh, pollMs]);
 
-  return { jobs, loaded, refresh, busy: jobs.some((j) => ACTIVE.has(j.status)) };
+  return { jobs, loaded, ready, refresh, busy: jobs.some((j) => ACTIVE.has(j.status)) };
 }
 
 export async function postRun(kind: string, params: Record<string, unknown>, secret?: string) {
@@ -113,9 +116,25 @@ export function RunNowButton({ onQueued }: { onQueued?: () => void }) {
   );
 }
 
-export function JobPanel({ jobs, loaded }: { jobs: Job[]; loaded: boolean }) {
+/** Shown wherever the jobs table does not exist yet, so the cause is never a mystery. */
+export function NotMigrated() {
+  return (
+    <div className="banner warn">
+      <b>The pipeline has not run since this version was deployed.</b>
+      <div className="small" style={{ marginTop: 4 }}>
+        The <code>jobs</code> table and the new simulation columns are created by the pipeline itself, at the
+        start of every run. Open the repository&apos;s <b>Actions</b> tab, pick the <b>weekly</b> workflow and
+        use <b>Run workflow</b> once. It applies the schema, and everything here starts working. Nothing else
+        needs changing.
+      </div>
+    </div>
+  );
+}
+
+export function JobPanel({ jobs, loaded, ready = true }: { jobs: Job[]; loaded: boolean; ready?: boolean }) {
   const [open, setOpen] = useState<number | null>(null);
   if (!loaded) return <p className="small muted">checking for running jobs…</p>;
+  if (!ready) return <NotMigrated />;
   if (jobs.length === 0) return <p className="small muted">No runs yet. Nothing has been queued from here.</p>;
 
   return (
@@ -178,11 +197,11 @@ export function JobPanel({ jobs, loaded }: { jobs: Job[]; loaded: boolean }) {
 
 /** Convenience wrapper: the panel plus its own polling, for pages that just want to drop it in. */
 export function LiveJobs({ heading = "Runs" }: { heading?: string }) {
-  const { jobs, loaded } = useJobs();
+  const { jobs, loaded, ready } = useJobs();
   return (
     <div className="panel" style={{ marginTop: 14 }}>
       <h2>{heading}</h2>
-      <JobPanel jobs={jobs} loaded={loaded} />
+      <JobPanel jobs={jobs} loaded={loaded} ready={ready} />
     </div>
   );
 }
@@ -193,7 +212,7 @@ export function LiveJobs({ heading = "Runs" }: { heading?: string }) {
  * component rendered from the database, so it reloads once the job reports success.
  */
 export function HomeRun() {
-  const { jobs, loaded, refresh, busy } = useJobs();
+  const { jobs, loaded, ready, refresh, busy } = useJobs();
   const wasBusy = useRef(false);
 
   useEffect(() => {
@@ -210,7 +229,7 @@ export function HomeRun() {
         Ingests the latest FPL data, refits, predicts and re-optimises, rather than waiting for the Tuesday
         03:00 job. It still cannot submit anything to FPL.
       </p>
-      <JobPanel jobs={jobs} loaded={loaded} />
+      <JobPanel jobs={jobs} loaded={loaded} ready={ready} />
     </div>
   );
 }

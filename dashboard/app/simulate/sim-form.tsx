@@ -111,7 +111,7 @@ export function SimForm({ seasons }: { seasons: string[] }) {
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const { jobs, loaded, refresh } = useJobs();
+  const { jobs, loaded, ready, refresh } = useJobs();
 
   const set = <K extends keyof Params>(k: K, v: Params[K]) => setP((s) => ({ ...s, [k]: v }));
   const toggleSeason = (s: string) =>
@@ -312,7 +312,7 @@ export function SimForm({ seasons }: { seasons: string[] }) {
 
       <div className="panel" style={{ marginTop: 14 }}>
         <h2>Runs</h2>
-        <JobPanel jobs={jobs} loaded={loaded} />
+        <JobPanel jobs={jobs} loaded={loaded} ready={ready} />
       </div>
     </>
   );

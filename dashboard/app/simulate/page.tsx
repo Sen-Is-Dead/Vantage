@@ -1,4 +1,5 @@
 import { availableSeasons, simulationRuns, type SimRun } from "@/lib/db";
+import { NotMigrated } from "../run-controls";
 import { SimForm } from "./sim-form";
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,7 @@ function Total({ r }: { r: SimRun }) {
 }
 
 export default async function Simulate() {
-  const [seasons, runs] = await Promise.all([availableSeasons(), simulationRuns(40)]);
+  const [seasons, { runs, migrated }] = await Promise.all([availableSeasons(), simulationRuns(40)]);
 
   return (
     <>
@@ -59,7 +60,9 @@ export default async function Simulate() {
 
       <div className="panel" style={{ marginTop: 14 }}>
         <h2>Past simulations</h2>
-        {runs.length === 0 ? (
+        {!migrated ? (
+          <NotMigrated />
+        ) : runs.length === 0 ? (
           <p className="muted">None yet.</p>
         ) : (
           <table>

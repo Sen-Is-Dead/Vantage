@@ -10,9 +10,9 @@ export async function GET(req: Request) {
   const limit = Math.min(25, Math.max(1, Number(new URL(req.url).searchParams.get("limit") ?? 8)));
   try {
     await expireStaleJobs();
-    const jobs = await recentJobs(limit);
+    const { jobs, ready } = await recentJobs(limit);
     return NextResponse.json(
-      { jobs: jobs.map((j, i) => (i === 0 ? j : { ...j, log_tail: null })) },
+      { jobs: jobs.map((j, i) => (i === 0 ? j : { ...j, log_tail: null })), ready },
       { headers: { "Cache-Control": "no-store" } }
     );
   } catch (e) {

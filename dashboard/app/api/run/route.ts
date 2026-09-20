@@ -10,6 +10,7 @@ import {
   JOB_KINDS,
   jobsToday,
   MAX_JOBS_PER_DAY,
+  NOT_MIGRATED,
   type JobKind,
 } from "@/lib/jobs";
 
@@ -66,7 +67,14 @@ export async function POST(req: Request) {
 
     const label = (params.label as string) ?? null;
     delete params.label;
-    const id = await createJob(kind, params, label);
+    let id: number;
+    try {
+      id = await createJob(kind, params, label);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      // 503 rather than 500: the request was fine, the database just is not ready yet
+      return bad(message, message === NOT_MIGRATED ? 503 : 500);
+    }
     try {
       await dispatch(id, kind);
     } catch (e) {

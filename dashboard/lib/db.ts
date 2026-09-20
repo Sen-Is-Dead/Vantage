@@ -29,6 +29,28 @@ export async function query<T = Record<string, unknown>>(sql: string, params: un
   return res.rows as T[];
 }
 
+// The pipeline owns the schema: `apply_schema` creates tables and adds columns at the start of every
+// run. So a dashboard deployed with new features ahead of the first pipeline run is talking to a
+// database that does not have them yet. That is a normal, temporary state and must not 500 a page —
+// these two codes let the callers below degrade into "run the pipeline once" instead.
+const PG_UNDEFINED_TABLE = "42P01";
+const PG_UNDEFINED_COLUMN = "42703";
+
+export function isMissingSchema(e: unknown): boolean {
+  const code = (e as { code?: string } | null | undefined)?.code;
+  return code === PG_UNDEFINED_TABLE || code === PG_UNDEFINED_COLUMN;
+}
+
+/** Run a query, but treat "that table/column does not exist yet" as a soft miss. */
+export async function queryIfMigrated<T>(fn: () => Promise<T>, fallback: T): Promise<{ data: T; migrated: boolean }> {
+  try {
+    return { data: await fn(), migrated: true };
+  } catch (e) {
+    if (isMissingSchema(e)) return { data: fallback, migrated: false };
+    throw e;
+  }
+}
+
 export type SquadPlayer = {
   player_id: number; name: string; team: string; position: "GKP" | "DEF" | "MID" | "FWD";
   price: number; pred: number; low: number; high: number; horizon_value: number;
@@ -128,24 +150,37 @@ export type SimRun = {
   params_json: Record<string, unknown> | null; notes: string | null; job_id: number | null;
 };
 
-/** Every simulation ever run, newest first, with the parameters that produced it. */
-export async function simulationRuns(limit = 40) {
-  return query<SimRun>(
-    `SELECT id, run_date, season, mode, strategy, label, start_gw, end_gw,
-            total_points::float AS total_points, n_repeats,
-            points_sd::float AS points_sd, points_p10::float AS points_p10, points_p90::float AS points_p90,
-            params_json, notes, job_id
-       FROM backtests ORDER BY run_date DESC LIMIT $1`,
-    [limit]
+/**
+ * Every simulation ever run, newest first, with the parameters that produced it.
+ * `migrated` is false when the pipeline has not yet added the simulation columns to `backtests`,
+ * in which case the caller should say so rather than show an empty table.
+ */
+export async function simulationRuns(limit = 40): Promise<{ runs: SimRun[]; migrated: boolean }> {
+  const { data, migrated } = await queryIfMigrated(
+    () =>
+      query<SimRun>(
+        `SELECT id, run_date, season, mode, strategy, label, start_gw, end_gw,
+                total_points::float AS total_points, n_repeats,
+                points_sd::float AS points_sd, points_p10::float AS points_p10, points_p90::float AS points_p90,
+                params_json, notes, job_id
+           FROM backtests ORDER BY run_date DESC LIMIT $1`,
+        [limit]
+      ),
+    [] as SimRun[]
   );
+  return { runs: data, migrated };
 }
 
 /** Seasons with gameweek data loaded, so the form only offers ones that can actually be replayed. */
-export async function availableSeasons() {
-  const rows = await query<{ season: string; n: number }>(
-    "SELECT season, count(*)::int AS n FROM player_gw_stats GROUP BY season HAVING count(*) > 1000 ORDER BY season DESC"
+export async function availableSeasons(): Promise<string[]> {
+  const { data } = await queryIfMigrated(
+    () =>
+      query<{ season: string; n: number }>(
+        "SELECT season, count(*)::int AS n FROM player_gw_stats GROUP BY season HAVING count(*) > 1000 ORDER BY season DESC"
+      ),
+    [] as { season: string; n: number }[]
   );
-  return rows.map((r) => r.season);
+  return data.map((r) => r.season);
 }
 
 export async function lastIngest() {

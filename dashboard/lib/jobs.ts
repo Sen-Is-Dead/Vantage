@@ -2,7 +2,7 @@
 // that writes, and the only thing it writes is a row in `jobs` describing work for the pipeline to
 // do. It cannot submit anything to FPL: the runner only accepts the three kinds below, all of which
 // read the FPL API and write to our own Postgres.
-import { query } from "@/lib/db";
+import { isMissingSchema, query, queryIfMigrated } from "@/lib/db";
 
 export type JobKind = "refresh" | "weekly" | "simulate";
 export const JOB_KINDS: JobKind[] = ["refresh", "weekly", "simulate"];
@@ -27,39 +27,63 @@ export type Job = {
 // queueing season replays all afternoon. Set RUN_SECRET in Vercel to add a password on top.
 export const MAX_JOBS_PER_DAY = 40;
 
-export async function recentJobs(limit = 12): Promise<Job[]> {
-  return query<Job>("SELECT * FROM jobs ORDER BY created_at DESC LIMIT $1", [limit]);
+// The `jobs` table is created by the pipeline's apply_schema, so it does not exist until the
+// pipeline has run at least once since this version was deployed. Every read below treats that as
+// "no jobs yet" rather than an error; only queueing one is a hard failure, with a message that says
+// what to do about it.
+
+export const NOT_MIGRATED =
+  "The pipeline has not run since this version was deployed, so the jobs table does not exist yet. " +
+  "Run the weekly workflow once from the repository's Actions tab (it applies the schema), then try again.";
+
+export async function recentJobs(limit = 12): Promise<{ jobs: Job[]; ready: boolean }> {
+  const { data, migrated } = await queryIfMigrated(
+    () => query<Job>("SELECT * FROM jobs ORDER BY created_at DESC LIMIT $1", [limit]),
+    [] as Job[]
+  );
+  return { jobs: data, ready: migrated };
 }
 
 export async function activeJob(): Promise<Job | null> {
-  const rows = await query<Job>(
-    "SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY created_at LIMIT 1"
+  const { data } = await queryIfMigrated(
+    () => query<Job>("SELECT * FROM jobs WHERE status IN ('queued','running') ORDER BY created_at LIMIT 1"),
+    [] as Job[]
   );
-  return rows[0] ?? null;
+  return data[0] ?? null;
 }
 
 export async function jobsToday(): Promise<number> {
-  const rows = await query<{ n: string }>(
-    "SELECT count(*) AS n FROM jobs WHERE created_at > now() - interval '24 hours'"
+  const { data } = await queryIfMigrated(
+    () => query<{ n: string }>("SELECT count(*) AS n FROM jobs WHERE created_at > now() - interval '24 hours'"),
+    [] as { n: string }[]
   );
-  return Number(rows[0]?.n ?? 0);
+  return Number(data[0]?.n ?? 0);
 }
 
 /** A job that claims to be running but whose workflow never reported back. */
 export async function expireStaleJobs(): Promise<void> {
-  await query(
-    `UPDATE jobs SET status='failed', finished_at=now(),
-            error=coalesce(error,'no heartbeat from the workflow for 6 hours; it was probably never picked up')
-      WHERE status IN ('queued','running') AND created_at < now() - interval '6 hours'`
+  await queryIfMigrated(
+    () =>
+      query(
+        `UPDATE jobs SET status='failed', finished_at=now(),
+                error=coalesce(error,'no heartbeat from the workflow for 6 hours; it was probably never picked up')
+          WHERE status IN ('queued','running') AND created_at < now() - interval '6 hours'`
+      ),
+    []
   );
 }
 
 export async function createJob(kind: JobKind, params: Record<string, unknown>, label: string | null) {
-  const rows = await query<{ id: number }>(
-    "INSERT INTO jobs (kind, params_json, label) VALUES ($1, $2, $3) RETURNING id",
-    [kind, JSON.stringify(params), label]
-  );
-  return rows[0].id;
+  try {
+    const rows = await query<{ id: number }>(
+      "INSERT INTO jobs (kind, params_json, label) VALUES ($1, $2, $3) RETURNING id",
+      [kind, JSON.stringify(params), label]
+    );
+    return rows[0].id;
+  } catch (e) {
+    if (isMissingSchema(e)) throw new Error(NOT_MIGRATED);
+    throw e;
+  }
 }
 
 export async function failJob(id: number, error: string) {
